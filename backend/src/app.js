@@ -3,26 +3,31 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 
+const routes = require("./routes");
+
 const app = express();
 
-// Security
+// Security Middleware
 app.use(helmet());
 
 // CORS
 app.use(cors());
 
-// Logger
+// Logging
 app.use(morgan("dev"));
 
 // Body Parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health Check Route
-app.get("/api/v1/health", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Public Safety Alert System API is running"
+// API Routes
+app.use("/api/v1", routes);
+
+// 404 Handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: "Route Not Found"
     });
 });
 
