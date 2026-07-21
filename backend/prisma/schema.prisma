@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CITIZEN
+  AUTHORITY
+  ADMIN
+}
+
+enum IncidentStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  phone       String?
+  role        Role     @default(CITIZEN)
+
+  reports     IncidentReport[]
+  contacts    EmergencyContact[]
+  devices     Device[]
+  alerts      Alert[]
+  notifications Notification[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+}
+
+model IncidentReport {
+  id            String          @id @default(uuid())
+  imageUrl      String
+  latitude      Float
+  longitude     Float
+  description   String?
+  status        IncidentStatus  @default(PENDING)
+
+  reportedById  String
+  reportedBy    User @relation(fields: [reportedById], references: [id])
+
+  prediction    MLPrediction?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model MLPrediction {
+  id              String @id @default(uuid())
+  detectedClass   String
+  confidence      Float
+  severity        Severity
+
+  reportId        String @unique
+  report          IncidentReport @relation(fields: [reportId], references: [id])
+
+  createdAt       DateTime @default(now())
+}
+
+model Alert {
+  id            String @id @default(uuid())
+
+  title         String
+  description   String
+
+  severity      Severity
+
+  latitude      Float
+  longitude     Float
+  radius        Int
+
+  createdById   String
+  createdBy     User @relation(fields: [createdById], references: [id])
+
+  notifications Notification[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+}
+
+model Notification {
+  id          String @id @default(uuid())
+
+  status      NotificationStatus @default(SENT)
+
+  userId      String
+  user        User @relation(fields: [userId], references: [id])
+
+  alertId     String
+  alert       Alert @relation(fields: [alertId], references: [id])
+
+  sentAt      DateTime @default(now())
+  readAt      DateTime?
+
+  createdAt   DateTime @default(now())
+}
+
+model EmergencyContact {
+  id          String @id @default(uuid())
+
+  name        String
+  phone       String
+  relation    String
+
+  userId      String
+  user        User @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+}
+
+model Device {
+  id          String @id @default(uuid())
+
+  fcmToken    String @unique
+  deviceName  String?
+
+  userId      String
+  user        User @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+}

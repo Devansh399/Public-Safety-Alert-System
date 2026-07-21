@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 
 const routes = require("./routes");
+const errorHandler = require("./middlewares/error.middleware");
 
 const app = express();
 
@@ -30,5 +31,7 @@ app.use((req, res) => {
         message: "Route Not Found"
     });
 });
+
+app.use(errorHandler);
 
 module.exports = app;
