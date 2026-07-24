@@ -64,6 +64,7 @@ model IncidentReport {
   reportedBy    User @relation(fields: [reportedById], references: [id])
 
   prediction    MLPrediction?
+  alert         Alert? 
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -93,6 +94,9 @@ model Alert {
   latitude      Float
   longitude     Float
   radius        Int
+
+  incidentId    String @unique
+  incident      IncidentReport @relation(fields: [incidentId], references: [id])
 
   createdById   String
   createdBy     User @relation(fields: [createdById], references: [id])

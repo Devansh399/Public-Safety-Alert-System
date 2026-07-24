@@ -4,6 +4,8 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
 
+const { predictIncident } = require("../services/ml.service");
+
 // create incident
 const createIncident = asyncHandler(async (req, res) => {
   const { imageUrl, latitude, longitude, description } = req.body;
@@ -22,9 +24,30 @@ const createIncident = asyncHandler(async (req, res) => {
     },
   });
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, "Incident reported successfully", incident));
+  // ml service
+  const prediction = await predictIncident({
+    imageUrl: incident.imageUrl,
+    latitude: incident.latitude,
+    longitude: incident.longitude,
+    description: incident.description,
+  });
+
+  // saving prediction in database
+  await prisma.mLPrediction.create({
+    data: {
+      detectedClass: prediction.detectedClass,
+      confidence: prediction.confidence,
+      severity: prediction.severity,
+      reportId: incident.id,
+    },
+  });
+
+  return res.status(201).json(
+    new ApiResponse(201, "Incident reported successfully", {
+      incident,
+      prediction,
+    }),
+  );
 });
 
 // read /  geticident
@@ -75,8 +98,40 @@ const getIncidentById = asyncHandler(async (req, res) => {
   const incident = await prisma.incidentReport.findUnique({
     where: {
       id,
-    }
-    
+    },
+  });
+
+  if (!incident) {
+    throw new ApiError(404, "Incident not found");
+  }
+
+  if (req.user.role === "CITIZEN" && incident.reportedById !== req.user.id) {
+    throw new ApiError(403, "You are not authorized to access this incident");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Incident fetched successfully", incident));
+});
+
+//authenticating and updating the incident status
+const updateIncidentStatus = asyncHandler(async (req, res) => {
+  // extract data
+  const { id } = req.params;
+  const { status } = req.body;
+
+  //validate status ki user correct status send kr rha hai ya nhi
+  const allowedStatus = ["PENDING", "VERIFIED", "REJECTED"];
+
+  if (!allowedStatus.includes(status)) {
+    throw new ApiError(400, "Invalid incident status");
+  }
+
+  // find incident
+  const incident = await prisma.incidentReport.findUnique({
+    where: {
+      id,
+    },
   });
 
   if (!incident) {
@@ -86,23 +141,84 @@ const getIncidentById = asyncHandler(async (req, res) => {
     );
 }
 
-if (
-    req.user.role === "CITIZEN" &&
-    incident.reportedById !== req.user.id
-) {
-    throw new ApiError(
-        403,
-        "You are not authorized to access this incident"
-    );
+if (incident.status === status) {
+  throw new ApiError(
+    400,
+    `Incident is already ${status.toLowerCase()}`
+  );
 }
+
+// update status
+const updatedIncident = await prisma.incidentReport.update({
+    where: {
+        id
+    },
+    data: {
+        status
+    }
+});
+
+
+if (status === "VERIFIED") {
+
+  
+  // fetching the prediction from creatIncident()
+  const prediction = await prisma.mLPrediction.findUnique({
+    where: {
+      reportId: incident.id
+    }
+  });
+
+  if (!prediction) {
+  throw new ApiError(
+    404,
+    "ML prediction not found for this incident"
+  );
+}
+  
+  
+  
+  const existingAlert = await prisma.alert.findUnique({
+    where: {
+      incidentId: incident.id
+    }
+  });
+  
+  if (!existingAlert) {
+    
+    // creating alert on database
+    await prisma.alert.create({
+      data: {
+        title: "Emergency Alert",
+        description: incident.description || "Emergency reported",
+        
+        severity: prediction.severity,
+        
+        latitude: incident.latitude,
+        longitude: incident.longitude,
+        
+        radius: 5000,
+        
+        incidentId: incident.id,
+        
+        createdById: req.user.id
+      }
+    });
+  }
+
+}
+
+
+
 
 return res.status(200).json(
     new ApiResponse(
         200,
-        "Incident fetched successfully",
-        incident
+        "Incident status updated successfully",
+        updatedIncident
     )
 );
+
 
 });
 
@@ -110,4 +226,5 @@ module.exports = {
   createIncident,
   getIncidents,
   getIncidentById,
+  updateIncidentStatus,
 };
