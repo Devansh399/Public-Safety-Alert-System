@@ -1,7 +1,11 @@
 const express = require("express");
 
 const { protect } = require("../middlewares/auth.middleware");
-const { createIncident, getIncidents } = require("../controllers/incident.controller");
+const {
+  createIncident,
+  getIncidents,
+  getIncidentById
+} = require("../controllers/incident.controller");
 
 const router = express.Router();
 
@@ -10,5 +14,7 @@ router.post("/", protect, createIncident);
 
 // read indicent
 router.get("/", protect, getIncidents);
+
+router.get("/:id", protect, getIncidentById);
 
 module.exports = router;
