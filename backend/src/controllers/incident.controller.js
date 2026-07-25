@@ -120,6 +120,8 @@ const updateIncidentStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
+
+
   //validate status ki user correct status send kr rha hai ya nhi
   const allowedStatus = ["PENDING", "VERIFIED", "REJECTED"];
 
@@ -141,6 +143,8 @@ const updateIncidentStatus = asyncHandler(async (req, res) => {
     );
 }
 
+
+
 if (incident.status === status) {
   throw new ApiError(
     400,
@@ -148,8 +152,11 @@ if (incident.status === status) {
   );
 }
 
-// update status
-const updatedIncident = await prisma.incidentReport.update({
+const updatedIncident = await prisma.$transaction(async (tx) => {
+
+
+  // update status
+const updatedIncident = await tx.incidentReport.update({
     where: {
         id
     },
@@ -163,7 +170,7 @@ if (status === "VERIFIED") {
 
   
   // fetching the prediction from creatIncident()
-  const prediction = await prisma.mLPrediction.findUnique({
+  const prediction = await tx.mLPrediction.findUnique({
     where: {
       reportId: incident.id
     }
@@ -177,8 +184,8 @@ if (status === "VERIFIED") {
 }
   
   
-  
-  const existingAlert = await prisma.alert.findUnique({
+  // existing alert check
+  const existingAlert = await tx.alert.findUnique({
     where: {
       incidentId: incident.id
     }
@@ -187,7 +194,7 @@ if (status === "VERIFIED") {
   if (!existingAlert) {
     
     // creating alert on database
-    await prisma.alert.create({
+    await tx.alert.create({
       data: {
         title: "Emergency Alert",
         description: incident.description || "Emergency reported",
@@ -208,6 +215,16 @@ if (status === "VERIFIED") {
 
 }
 
+return updatedIncident;
+
+
+
+
+});
+
+
+
+
 
 
 
@@ -218,6 +235,8 @@ return res.status(200).json(
         updatedIncident
     )
 );
+
+
 
 
 });
