@@ -6,6 +6,8 @@ const ApiResponse = require("../utils/ApiResponse");
 
 const { predictIncident } = require("../services/ml.service");
 
+const notificationService = require("../services/notification.service");
+
 // create incident
 const createIncident = asyncHandler(async (req, res) => {
   const { imageUrl, latitude, longitude, description } = req.body;
@@ -120,8 +122,6 @@ const updateIncidentStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
-
-
   //validate status ki user correct status send kr rha hai ya nhi
   const allowedStatus = ["PENDING", "VERIFIED", "REJECTED"];
 
@@ -137,108 +137,85 @@ const updateIncidentStatus = asyncHandler(async (req, res) => {
   });
 
   if (!incident) {
-    throw new ApiError(
-        404,
-        "Incident not found"
-    );
-}
-
-
-
-if (incident.status === status) {
-  throw new ApiError(
-    400,
-    `Incident is already ${status.toLowerCase()}`
-  );
-}
-
-const updatedIncident = await prisma.$transaction(async (tx) => {
-
-
-  // update status
-const updatedIncident = await tx.incidentReport.update({
-    where: {
-        id
-    },
-    data: {
-        status
-    }
-});
-
-
-if (status === "VERIFIED") {
-
-  
-  // fetching the prediction from creatIncident()
-  const prediction = await tx.mLPrediction.findUnique({
-    where: {
-      reportId: incident.id
-    }
-  });
-
-  if (!prediction) {
-  throw new ApiError(
-    404,
-    "ML prediction not found for this incident"
-  );
-}
-  
-  
-  // existing alert check
-  const existingAlert = await tx.alert.findUnique({
-    where: {
-      incidentId: incident.id
-    }
-  });
-  
-  if (!existingAlert) {
-    
-    // creating alert on database
-    await tx.alert.create({
-      data: {
-        title: "Emergency Alert",
-        description: incident.description || "Emergency reported",
-        
-        severity: prediction.severity,
-        
-        latitude: incident.latitude,
-        longitude: incident.longitude,
-        
-        radius: 5000,
-        
-        incidentId: incident.id,
-        
-        createdById: req.user.id
-      }
-    });
+    throw new ApiError(404, "Incident not found");
   }
 
-}
+  if (incident.status === status) {
+    throw new ApiError(400, `Incident is already ${status.toLowerCase()}`);
+  }
 
-return updatedIncident;
+  const updatedIncident = await prisma.$transaction(async (tx) => {
+    // update status
+    const updatedIncident = await tx.incidentReport.update({
+      where: {
+        id,
+      },
+      data: {
+        status,
+      },
+    });
 
+    if (status === "VERIFIED") {
+      // fetching the prediction from creatIncident()
+      const prediction = await tx.mLPrediction.findUnique({
+        where: {
+          reportId: incident.id,
+        },
+      });
 
+      if (!prediction) {
+        throw new ApiError(404, "ML prediction not found for this incident");
+      }
 
+      // existing alert check
+      const existingAlert = await tx.alert.findUnique({
+        where: {
+          incidentId: incident.id,
+        },
+      });
 
-});
+      if (!existingAlert) {
+        // creating alert on database
+        const alert = await tx.alert.create({
+          data: {
+            title: "Emergency Alert",
+            description: incident.description || "Emergency reported",
 
+            severity: prediction.severity,
 
+            latitude: incident.latitude,
+            longitude: incident.longitude,
 
+            radius: 5000,
 
+            incidentId: incident.id,
 
+            createdById: req.user.id,
+          },
+        });
 
+        await notificationService.createNotification(
+          {
+          userId: incident.reportedById,
+          alertId: alert.id,
+        },
+        tx
+      );
+      }
+    }
 
-return res.status(200).json(
-    new ApiResponse(
+    return updatedIncident;
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
         200,
         "Incident status updated successfully",
-        updatedIncident
-    )
-);
-
-
-
-
+        updatedIncident,
+      ),
+    );
 });
 
 module.exports = {

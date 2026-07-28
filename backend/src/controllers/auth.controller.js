@@ -10,7 +10,7 @@ const generateToken = require("../utils/generateToken");
 
 // register user
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email, password, phone, role } = req.body;
   if (!name || !email || !password) {
     throw new ApiError(400, "Name, email and password are required");
   }
@@ -43,6 +43,7 @@ const register = asyncHandler(async (req, res) => {
       email,
       password: hashedPassword,
       phone,
+       role: role || "CITIZEN",
     },
   });
 
