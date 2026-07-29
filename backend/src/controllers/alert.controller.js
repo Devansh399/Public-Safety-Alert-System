@@ -42,7 +42,35 @@ const getAlertById = asyncHandler(async (req, res) => {
 
 });
 
+// near by alerts
+const getNearbyAlerts = asyncHandler(async (req, res) => {
+
+    const { lat, lng } = req.query;
+
+    if (!lat || !lng) {
+        throw new ApiError(
+            400,
+            "Latitude and Longitude are required."
+        );
+    }
+
+    const alerts = await alertService.getNearbyAlerts(
+        Number(lat),
+        Number(lng)
+    );
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            "Nearby alerts fetched successfully.",
+            alerts
+        )
+    );
+
+});
+
 module.exports = {
     getAllAlerts,
-    getAlertById
+    getAlertById,
+    getNearbyAlerts
 };
