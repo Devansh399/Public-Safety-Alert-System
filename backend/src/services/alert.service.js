@@ -1,3 +1,7 @@
+const calculateDistance = require("../utils/calculateDistance");
+
+
+
 const prisma = require("../config/prisma");
 
 const getAllAlerts = async (db = prisma) => {
@@ -44,7 +48,51 @@ const getAlertById = async (alertId, db = prisma) => {
     });
 };
 
+
+// get nearby alerts
+const getNearbyAlerts = async (
+    latitude,
+    longitude,
+    db = prisma
+) => {
+
+    const alerts = await db.alert.findMany({
+        where: {
+            deletedAt: null
+        },
+        include: {
+            incident: true,
+            createdBy: {
+                select: {
+                    id: true,
+                    name: true,
+                    role: true
+                }
+            }
+        }
+    });
+
+   const nearbyAlerts = alerts
+    .map((alert) => {
+        const distance = calculateDistance(
+            latitude,
+            longitude,
+            alert.latitude,
+            alert.longitude
+        );
+
+        return {
+            ...alert,
+            distance: Number(distance.toFixed(2))
+        };
+    })
+    .filter((alert) => alert.distance <= alert.radius);
+
+return nearbyAlerts;
+};
+
 module.exports = {
     getAllAlerts,
-    getAlertById
+    getAlertById,
+    getNearbyAlerts
 };
