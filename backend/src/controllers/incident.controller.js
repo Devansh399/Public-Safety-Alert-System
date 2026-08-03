@@ -1,4 +1,5 @@
 const prisma = require("../config/prisma");
+const { getIO } = require("../config/socket");
 
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
@@ -196,16 +197,26 @@ const updateIncidentStatus = asyncHandler(async (req, res) => {
 
         await notificationService.createNotification(
           {
-          userId: incident.reportedById,
-          alertId: alert.id,
-        },
-        tx
-      );
+            userId: incident.reportedById,
+            alertId: alert.id,
+          },
+          tx,
+        );
       }
     }
 
     return updatedIncident;
   });
+
+  // ✅ Emit AFTER transaction completes
+  if (status === "VERIFIED") {
+    const io = getIO();
+
+    io.emit("new-alert", {
+      incidentId: incident.id,
+      message: "New emergency alert created.",
+    });
+  }
 
   return res
     .status(200)
