@@ -6,6 +6,7 @@ const incidentRoutes = require("./incident.routes");
 const notificationRoutes = require("./notification.routes");
 const alertRoutes = require("./alert.routes");
 const dashboardRoutes = require("./dashboard.routes");
+const uploadRoutes = require("./upload.routes");
 
 const router = express.Router();
 
@@ -19,5 +20,7 @@ router.use("/notifications", notificationRoutes);
 router.use("/alerts", alertRoutes);
 
 router.use("/dashboard", dashboardRoutes);
+
+router.use("/upload", uploadRoutes);
 
 module.exports = router;

@@ -1,6 +1,10 @@
 const prisma = require("../config/prisma");
 const { getIO } = require("../config/socket");
 
+const fs = require("fs");
+
+const cloudinary = require("../config/cloudinary");
+
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const ApiResponse = require("../utils/ApiResponse");
@@ -11,11 +15,28 @@ const notificationService = require("../services/notification.service");
 
 // create incident
 const createIncident = asyncHandler(async (req, res) => {
-  const { imageUrl, latitude, longitude, description } = req.body;
+  const {  latitude, longitude, description } = req.body;
 
-  if (!imageUrl || latitude == null || longitude == null) {
+  
+  if (!req.file) {                                   // image validation
+    throw new ApiError(400, "Image is required");
+  }
+
+  if (latitude == null || longitude == null) {
     throw new ApiError(400, "Image, latitude and longitude are required");
   }
+
+  // upload image to cloudinary database me save hone se phle pehle cloudinary me upload krna hoga
+  const result = await cloudinary.uploader.upload(
+    req.file.path,
+    {
+        folder: "public-safety-alert-system",
+    }
+);
+
+const imageUrl = result.secure_url;
+
+ fs.unlinkSync(req.file.path);
 
   const incident = await prisma.incidentReport.create({
     data: {

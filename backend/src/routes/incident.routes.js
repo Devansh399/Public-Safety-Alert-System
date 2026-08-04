@@ -2,6 +2,9 @@ const express = require("express");
 
 const { protect } = require("../middlewares/auth.middleware");
 const { authorize } = require("../middlewares/auth.middleware");
+
+const upload = require("../middlewares/upload.middleware");
+
 const {
   createIncident,
   getIncidents,
@@ -12,7 +15,7 @@ const {
 const router = express.Router();
 
 // create incident
-router.post("/", protect, createIncident);
+router.post("/", protect,  upload.single("image"), createIncident);
 
 // read indicent
 router.get("/", protect, getIncidents);
