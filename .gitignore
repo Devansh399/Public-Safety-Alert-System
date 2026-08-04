@@ -1,0 +1,18 @@
+# Node
+**/node_modules/
+
+# Environment
+**/.env
+
+# Python
+ml-service/venv/
+**/__pycache__/
+*.pyc
+
+# Uploads
+backend/uploads/
+
+# Build
+dist/
+build/
+coverage/
