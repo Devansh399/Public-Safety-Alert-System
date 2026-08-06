@@ -16,3 +16,6 @@ backend/uploads/
 dist/
 build/
 coverage/
+
+# YOLO Models
+*.pt

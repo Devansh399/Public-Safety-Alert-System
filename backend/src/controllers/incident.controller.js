@@ -17,14 +17,16 @@ const notificationService = require("../services/notification.service");
 const createIncident = asyncHandler(async (req, res) => {
   const {  latitude, longitude, description } = req.body;
 
+  const latitudeValue = parseFloat(latitude);
+const longitudeValue = parseFloat(longitude);
   
   if (!req.file) {                                   // image validation
     throw new ApiError(400, "Image is required");
   }
 
-  if (latitude == null || longitude == null) {
-    throw new ApiError(400, "Image, latitude and longitude are required");
-  }
+ if (isNaN(latitudeValue) || isNaN(longitudeValue)) {
+  throw new ApiError(400, "Valid latitude and longitude are required");
+}
 
   // upload image to cloudinary database me save hone se phle pehle cloudinary me upload krna hoga
   const result = await cloudinary.uploader.upload(
@@ -41,8 +43,8 @@ const imageUrl = result.secure_url;
   const incident = await prisma.incidentReport.create({
     data: {
       imageUrl,
-      latitude,
-      longitude,
+      latitude: latitudeValue,
+      longitude: longitudeValue,
       description,
       reportedById: req.user.id,
     },
