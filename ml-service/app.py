@@ -32,12 +32,32 @@ def predict(data: PredictRequest):
     verbose=False
 )
 
+    result = results[0]
+
+    if len(result.boxes) == 0:
+        return {
+            "detectedClass": "Unknown",
+            "confidence": 0.0,
+            "severity": "LOW"
+        }
+
+    box = result.boxes[0]
+
+    class_id = int(box.cls.item())
+
+    detected_class = result.names[class_id]
+
+    confidence = float(box.conf.item())
+
+    if detected_class in ["car", "bus", "truck"]:
+        severity = "HIGH"
+    elif detected_class in ["motorcycle", "bicycle"]:
+        severity = "MEDIUM"
+    else:
+        severity = "LOW"
+
     return {
-
-        "detectedClass": "Road Accident",
-
-        "confidence": 0.94,
-
-        "severity": "HIGH"
-
+        "detectedClass": detected_class,
+        "confidence": confidence,
+        "severity": severity
     }
